@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Wardrobe</title>
+  <meta name="description" content="ワードローブ管理 PWA">
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css?v=15">
+
+  <!-- iOS ホーム画面（PWA）対応 -->
+  <meta name="theme-color" content="#2a2a28">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wardrobe">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+  <header>
+    <!-- インラインのハンガーロゴ（アイコンと同モチーフ） -->
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="#f4f3ef" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 6a3 3 0 0 1 6 0c0 1.2-1 1.7-3 3"/>
+      <path d="M12 9 3.5 15.5h17L12 9z"/>
+    </svg>
+    <h1>Wardrobe</h1>
+    <span class="spacer"></span>
+    <button id="btn-docs" class="icon" type="button" title="ドキュメント" aria-label="ドキュメント">📄</button>
+    <button id="btn-new" class="icon" type="button" title="新規追加" aria-label="新規追加">＋</button>
+    <button id="btn-settings" class="icon" type="button" title="設定" aria-label="設定">⚙</button>
+  </header>
+
+  <div id="net-banner" class="net-banner" hidden></div>
+
+  <main>
+    <!-- 一覧ビュー -->
+    <section id="view-main" class="view">
+      <!-- 未設定時の案内 -->
+      <div id="main-empty" class="placeholder">
+        <span class="big">🧥</span>
+        <div id="main-hint">右上の ⚙ から PAT を設定してください。</div>
+      </div>
+
+      <!-- 一覧本体 -->
+      <div id="browser" hidden>
+        <div class="toolbar">
+          <div class="toolbar-row">
+            <input type="search" id="q" placeholder="検索（名前・ブランド・色）"
+                   autocapitalize="off" autocorrect="off" spellcheck="false">
+          </div>
+          <div class="toolbar-row wrap">
+            <select id="catf"><option value="">全カテゴリ</option></select>
+            <button id="missf" class="chip" type="button" aria-pressed="false">未入力のみ</button>
+            <div class="seg">
+              <button id="vCard" class="on" type="button">カード</button>
+              <button id="vList" type="button">リスト</button>
+            </div>
+            <button id="btn-reload" class="icon-sm" type="button" title="再読み込み" aria-label="再読み込み">⟳</button>
+          </div>
+          <div class="stat" id="stat"></div>
+        </div>
+
+        <div id="load-status" class="status" role="status" aria-live="polite"></div>
+
+        <div id="empty-results" class="placeholder" hidden>該当するアイテムがありません。</div>
+        <div id="cards" class="grid"></div>
+        <div id="tbl-wrap" class="tbl-wrap" hidden>
+          <table id="tbl">
+            <thead><tr>
+              <th data-k="name">名前</th><th data-k="brand">ブランド</th><th data-k="category">カテゴリ</th>
+              <th data-k="lineage">系統</th><th data-k="tone">トーン</th>
+              <th data-k="date">購入時期</th><th data-k="price" class="num">購入金額</th>
+              <th data-k="satisfaction" class="num">満足</th><th data-k="tier">tier</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 設定ビュー -->
+    <section id="view-settings" class="view">
+      <div class="panel">
+        <h2>接続設定</h2>
+        <p class="note">
+          GitHub の <strong>fine-grained PAT</strong>（対象リポジトリのみ・<em>Contents: Read and write</em>）を
+          貼り付けてください。トークンとデータはこの端末内（localStorage）にのみ保存され、
+          シェルやリポジトリには一切送信・コミットされません。
+        </p>
+
+        <label class="field">
+          <span>Personal Access Token</span>
+          <input id="f-token" type="password" autocomplete="off" autocapitalize="off"
+                 autocorrect="off" spellcheck="false" placeholder="github_pat_…">
+        </label>
+
+        <div class="row">
+          <label class="field">
+            <span>Owner</span>
+            <input id="f-owner" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Repo</span>
+            <input id="f-repo" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Branch</span>
+            <input id="f-branch" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="btn-test" class="btn" type="button">接続テスト</button>
+          <button id="btn-save" class="btn secondary" type="button">保存</button>
+          <button id="btn-clear" class="btn danger" type="button">トークン削除</button>
+        </div>
+
+        <div id="settings-status" class="status" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="panel">
+        <h2>fine-grained PAT の作り方</h2>
+        <ul class="steps">
+          <li>GitHub → Settings → Developer settings → Personal access tokens → <code>Fine-grained tokens</code></li>
+          <li>Repository access: <code>Only select repositories</code> → 対象リポジトリ（既定 <code>hirotoyoshimi/wardrobe</code>）</li>
+          <li>Permissions → Repository permissions → <code>Contents: Read and write</code>（<code>Metadata: Read</code> は自動付与）</li>
+          <li>生成された <code>github_pat_…</code> を上に貼り付け → 接続テスト</li>
+          <li>失効させたい時は同画面の token から <code>Revoke</code></li>
+        </ul>
+      </div>
+
+      <div class="actions">
+        <button id="btn-back" class="btn secondary" type="button">← 一覧へ戻る</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 編集モーダル -->
+  <div class="ov" id="ov" hidden>
+    <div class="modal">
+      <div class="mhead">
+        <strong id="m-name"></strong><span class="mid" id="m-id"></span>
+        <button class="x" id="m-close" type="button" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="mbody" id="m-body"></div>
+      <div class="mfoot">
+        <button class="btn" id="m-save" type="button">保存してコミット</button>
+        <span class="msg" id="m-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新規追加（カメラ/写真）オーバーレイ -->
+  <div class="ov" id="newov" hidden>
+    <div class="modal">
+      <div class="mhead">
+        <strong>新規追加</strong><span class="mid">カメラ / 写真</span>
+        <button class="x" id="new-close" type="button" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="mbody" id="new-body"></div>
+      <div class="mfoot">
+        <button class="btn" id="new-save" type="button">追加してコミット</button>
+        <span class="msg" id="new-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ドキュメント（budget / wishlist / レポート）オーバーレイ -->
+  <div class="ov" id="docsov" hidden>
+    <div class="modal">
+      <div class="mhead">
+        <button class="x back" id="docs-back" type="button" aria-label="一覧へ戻る" hidden>‹</button>
+        <strong id="docs-title">ドキュメント</strong>
+        <button class="x" id="docs-close" type="button" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="docbody" id="docs-body"></div>
+    </div>
+  </div>
+
+  <!-- iOS「ホーム画面に追加」導線（Safariタブで未インストール時のみ） -->
+  <div id="a2hs" class="a2hs" hidden>
+    <span>共有 <span class="ico">􀈂</span> →「ホーム画面に追加」で、全画面のアプリとして使えます。</span>
+    <button id="a2hs-close" type="button" aria-label="閉じる">&times;</button>
+  </div>
+
+  <script src="vendor/js-yaml.min.js"></script>
+  <script src="vendor/marked.min.js"></script>
+  <script src="tone.js?v=13"></script>
+  <script src="patch.js?v=13"></script>
+  <script src="github.js?v=13"></script>
+  <script src="store.js?v=13"></script>
+  <script src="app.js?v=13"></script>
+</body>
+</html>
